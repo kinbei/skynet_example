@@ -1,0 +1,17 @@
+local root = "./"
+local skynet = root .. "skynet/"
+
+app_name = "hello-socket"
+app_root = root .. app_name .. "/"
+
+thread = 8
+
+cpath = skynet .. "cservice/?.so"
+harbor = 0
+
+bootstrap = "snlua server"
+
+lua_path = skynet.."lualib/?.lua;"..app_root.."?.lua"
+lua_cpath = skynet.."luaclib/?.so;"..app_root.."?.so"
+luaservice = skynet.."service/?.lua;"..app_root.."?.lua"
+lualoader = skynet.."lualib/loader.lua"
