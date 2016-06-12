@@ -1,7 +1,7 @@
 SKYNET_PATH = ../skynet
 TARGET = ./cservice/package.so
 
-$(TARGET) : service_package.c
+$(TARGET) : ./service-src/service_package.c
 	gcc -Wall -g --shared -fPIC -o $@ $^ -I$(SKYNET_PATH)/skynet-src
 
 clean :
