@@ -2,7 +2,7 @@ if _VERSION ~= "Lua 5.3" then
 	error "Use lua 5.3"
 end
 
-package.cpath = (os.getenv "HOME") .. "/skynet/luaclib/?.so"
+package.cpath = "../skynet/luaclib/?.so"
 
 local socket = require "clientsocket"
 local fd = assert(socket.connect("127.0.0.1", 8888))
