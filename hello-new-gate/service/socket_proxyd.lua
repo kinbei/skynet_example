@@ -9,9 +9,9 @@ skynet.register_protocol {
 	pack = function(text) return text end,
 }
 
-local socket_fd_addr = {}
-local socket_addr_fd = {}
-local socket_init = {}
+local socket_fd_addr = {} -- fd --> package service[c] address
+local socket_addr_fd = {} -- package service[c] address --> fd
+local socket_init = {} -- package service[c] address --> responseµÄ»Øµ÷
 
 local function close_agent(addr)
 	local fd = assert(socket_addr_fd[addr])
