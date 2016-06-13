@@ -7,7 +7,7 @@ skynet.init(function()
 end)
 
 local proxy = {}
-local map = {}
+local map = {} -- fd --> package[c] service addr
 
 skynet.register_protocol {
 	name = "text",
