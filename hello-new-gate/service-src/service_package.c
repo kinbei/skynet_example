@@ -198,7 +198,6 @@ new_message(struct package *P, const uint8_t *msg, int sz) {
 				queue_push(&P->response, &P->uncomplete);
 				P->uncomplete_sz = 0;
 			} else {
-				printf("sz = %d return function now 1\n", sz);
 				memcpy(P->uncomplete.msg + P->uncomplete.sz - P->uncomplete_sz, msg, sz);
 				P->uncomplete_sz -= sz;
 				return;
@@ -206,10 +205,7 @@ new_message(struct package *P, const uint8_t *msg, int sz) {
 		}
 
 		if (sz <= 0)
-		{
-			printf("sz = %d return function now\n", sz);
 			return;
-		}		
 
 		// set P->header_sz zero in package_create()
 		// and only change value in this function
@@ -237,9 +233,6 @@ new_message(struct package *P, const uint8_t *msg, int sz) {
 		P->uncomplete.sz = P->header[0] * 256 + P->header[1];
 		P->uncomplete.msg = skynet_malloc(P->uncomplete.sz);
 		P->uncomplete_sz = P->uncomplete.sz;
-
-		printf("P->uncomplete_sz = %d \n", P->uncomplete_sz);
-		printf("P->header_sz = %d \n", P->header_sz);
 	}
 }
 
@@ -296,6 +289,7 @@ socket_message(struct skynet_context *ctx, struct package *P, const struct skyne
 
 static void
 heartbeat(struct skynet_context *ctx, struct package *P) {
+	skynet_error(ctx, "P->recv(%d) P->heartbeat(%d)", P->recv, P->heartbeat);
 	if (P->recv == P->heartbeat) {
 		if (!P->closed) {
 			skynet_socket_shutdown(ctx, P->fd);
