@@ -289,7 +289,7 @@ socket_message(struct skynet_context *ctx, struct package *P, const struct skyne
 
 static void
 heartbeat(struct skynet_context *ctx, struct package *P) {
-	skynet_error(ctx, "P->recv(%d) P->heartbeat(%d)", P->recv, P->heartbeat);
+	// it will change P->recv value when recv socket data
 	if (P->recv == P->heartbeat) {
 		if (!P->closed) {
 			skynet_socket_shutdown(ctx, P->fd);
@@ -348,6 +348,7 @@ struct package *
 package_create(void) {
 	struct package * P = skynet_malloc(sizeof(*P));
 	memset(P, 0, sizeof(*P));
+	// heartbeat() will be call in package_init() function, so set P->heartbeat = -1 for don't close connection of client
 	P->heartbeat = -1;
 	queue_init(&P->request, sizeof(struct request));
 	queue_init(&P->response, sizeof(struct response));
