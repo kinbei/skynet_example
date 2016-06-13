@@ -183,8 +183,13 @@ command(struct skynet_context *ctx, struct package *P, int session, uint32_t sou
 
 static void
 new_message(struct package *P, const uint8_t *msg, int sz) {
+	
 	++P->recv;
+
 	for (;;) {
+		
+		// set P->uncomplete_sz zero in package_create()
+		// and only change value in this function
 		if (P->uncomplete_sz > 0) {
 			if (sz >= P->uncomplete_sz) {
 				memcpy(P->uncomplete.msg + P->uncomplete.sz - P->uncomplete_sz, msg, P->uncomplete_sz);
@@ -202,12 +207,18 @@ new_message(struct package *P, const uint8_t *msg, int sz) {
 		if (sz <= 0)
 			return;
 
+		// set P->header_sz zero in package_create()
+		// and only change value in this function
 		if (P->header_sz == 0) {
+
+			// when recvive 1 byte only
 			if (sz == 1) {
 				P->header[0] = msg[0];
 				P->header_sz = 1;
 				return;
 			}
+
+			// when recvive more than 1 bytes
 			P->header[0] = msg[0];
 			P->header[1] = msg[1];
 			msg+=2;
