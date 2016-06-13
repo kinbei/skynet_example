@@ -274,7 +274,9 @@ socket_message(struct skynet_context *ctx, struct package *P, const struct skyne
 		}
 		break;
 	case SKYNET_SOCKET_TYPE_DATA:
+		skynet_error(ctx, "recv new data, smsg->ud = %d ", smsg->ud);
 		new_message(P, (const uint8_t *)smsg->buffer, smsg->ud);
+		skynet_error(ctx, "recv new data, smsg->ud = %d finish new_message", smsg->ud);
 		skynet_free(smsg->buffer);
 		response(ctx, P);
 		break;
