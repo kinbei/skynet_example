@@ -1,1 +1,1 @@
-./skynet/skynet ./server/config
+../skynet/skynet ./config 
