@@ -198,6 +198,7 @@ new_message(struct package *P, const uint8_t *msg, int sz) {
 				queue_push(&P->response, &P->uncomplete);
 				P->uncomplete_sz = 0;
 			} else {
+				printf("sz = %d return function now 1\n", sz);
 				memcpy(P->uncomplete.msg + P->uncomplete.sz - P->uncomplete_sz, msg, sz);
 				P->uncomplete_sz -= sz;
 				return;
