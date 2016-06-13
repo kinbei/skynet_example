@@ -58,6 +58,7 @@ skynet.start(function()
 			socket_init[source](true, source)
 			socket_init[source] = nil
 		elseif cmd == "FAIL" then
+			-- socket close
 			socket_init[source](false)
 			socket_init[source] = nil
 		else
