@@ -205,9 +205,10 @@ new_message(struct package *P, const uint8_t *msg, int sz) {
 		}
 
 		if (sz <= 0)
+		{
+			printf("sz = %d return function now\n", sz);
 			return;
-
-		
+		}		
 
 		// set P->header_sz zero in package_create()
 		// and only change value in this function
