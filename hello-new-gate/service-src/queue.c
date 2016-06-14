@@ -1,4 +1,7 @@
 #include "queue.h"
+#include "skynet.h"
+#include "string.h"
+#include "assert.h"
 
 void queue_init(struct queue *q, int sz) {
 	q->head = 0;

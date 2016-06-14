@@ -1,6 +1,9 @@
 #ifndef queue_h
 #define queue_h
 
+#include <stdio.h>
+#include <stdint.h>
+
 struct queue {
 	int cap;
 	int sz;
