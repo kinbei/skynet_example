@@ -6,9 +6,10 @@
 #include <string.h>
 #include <assert.h>
 
-#define TIMEOUT "1000"	// 10s
+#define TIMEOUT "1000000"	// 10s
 
 struct response {
+	uint32_t servantname;
 	size_t sz;
 	void * msg;
 };
@@ -18,16 +19,45 @@ struct request {
 	int session;
 };
 
+#pragma pack(push, 1)
+struct proto_header_t {
+	uint32_t magic;
+	uint8_t version;
+	uint32_t serialno;
+	uint32_t servantname;
+	uint32_t checksum;
+	uint16_t flag;
+	uint8_t size[3]; // if size[0] < 0xFF then size[0] is the size of package, else size[1] x 0x100 + size[2] is the size of package
+};
+#pragma pack(pop)
+
+// see also the comments of size field
+#define PROTO_EXTRA_SIZE (sizeof(uint8_t) * 2)
+#define PROTO_HEADER_SIZE ( sizeof(struct proto_header_t) - PROTO_EXTRA_SIZE )
+#define LONG_PROTO_HEADER_SIZE sizeof(struct proto_header_t)
+
+// must make sure the header is complete header else return value is wrong
+static int 
+get_size(struct proto_header_t *header) {
+	if ( header->size[0] < 0xFF )
+		return header->size[0];
+
+	return header->size[1] * 0x100 + header->size[2];
+}
+
 struct package {
 	uint32_t manager;
 	int fd;
+	
 	int heartbeat;
 	int recv;
+
 	int init;
 	int closed;
 
 	int header_sz;
-	uint8_t header[2];
+	struct proto_header_t header;
+
 	int uncomplete_sz;
 	struct response uncomplete;
 
@@ -69,7 +99,7 @@ report_info(struct skynet_context *ctx, struct package *P, int session, uint32_t
 		uncomplete_sz = P->uncomplete.sz;
 	}
 	char tmp[128];
-	int n = sprintf(tmp,"req=%d resp=%d uncomplete=%d/%d", queue_size(&P->request), queue_size(&P->response),uncomplete,uncomplete_sz);
+	int n = sprintf(tmp,"req=%d resp=%d uncomplete=%d/%d", queue_size(&P->request), queue_size(&P->response), uncomplete, uncomplete_sz);
 	skynet_send(ctx, 0, source, PTYPE_RESPONSE, session, tmp, n);
 }
 
@@ -110,21 +140,31 @@ command(struct skynet_context *ctx, struct package *P, int session, uint32_t sou
 }
 
 static void
+dump_hex(const uint8_t *msg, int sz) {
+	int i;
+	for (i = 0; i < sz; i++)
+		printf("%02X ", msg[i]);
+	printf("\n");
+	printf("----------------- \n");
+}
+
+static void
 new_message(struct package *P, const uint8_t *msg, int sz) {
-	
+	// dump_hex(msg, sz);
+
 	++P->recv;
 
 	for (;;) {
 		
 		// set P->uncomplete_sz zero in package_create()
 		// and only change value in this function
-		if (P->uncomplete_sz > 0) {
+		if (P->uncomplete_sz >= 0) {
 			if (sz >= P->uncomplete_sz) {
 				memcpy(P->uncomplete.msg + P->uncomplete.sz - P->uncomplete_sz, msg, P->uncomplete_sz);
 				msg += P->uncomplete_sz;
 				sz -= P->uncomplete_sz;
 				queue_push(&P->response, &P->uncomplete);
-				P->uncomplete_sz = 0;
+				P->uncomplete_sz = -1;
 			} else {
 				memcpy(P->uncomplete.msg + P->uncomplete.sz - P->uncomplete_sz, msg, sz);
 				P->uncomplete_sz -= sz;
@@ -137,30 +177,68 @@ new_message(struct package *P, const uint8_t *msg, int sz) {
 
 		// set P->header_sz zero in package_create()
 		// and only change value in this function
+		// P->header_sz is zero when P->header has no data
 		if (P->header_sz == 0) {
 
-			// when recvive 1 byte only
-			if (sz == 1) {
-				P->header[0] = msg[0];
-				P->header_sz = 1;
+			if ( sz < PROTO_HEADER_SIZE ) {
+				memcpy( ((char*)&P->header) + P->header_sz, msg, sz );
+				P->header_sz += sz;
 				return;
 			}
+			else {
+				memcpy( ((char*)&P->header) + P->header_sz, msg, PROTO_HEADER_SIZE );
+				P->header_sz += PROTO_HEADER_SIZE;
+				msg += PROTO_HEADER_SIZE;
+				sz -= PROTO_HEADER_SIZE;
 
-			// when recvive more than 1 bytes
-			P->header[0] = msg[0];
-			P->header[1] = msg[1];
-			msg+=2;
-			sz-=2;
+				if ( P->header.size[0] == 0xFF ) {
+					if ( sz <= PROTO_EXTRA_SIZE ) {
+						memcpy( ((char*)&P->header) + P->header_sz, msg, sz );
+						P->header_sz += sz;
+						return;
+					}
+
+					memcpy( ((char*)&P->header) + P->header_sz, msg, PROTO_EXTRA_SIZE );
+					P->header_sz += PROTO_EXTRA_SIZE;
+					msg += PROTO_EXTRA_SIZE;
+					sz -= PROTO_EXTRA_SIZE;
+				}
+			}
+
 		} else {
-			assert(P->header_sz == 1);
-			P->header[1] = msg[0];
-			P->header_sz = 0;
-			++msg;
-			--sz;
+			assert( P->header_sz < PROTO_HEADER_SIZE || P->header_sz < LONG_PROTO_HEADER_SIZE );
+
+			if ( sz < ( PROTO_HEADER_SIZE - P->header_sz) ) {
+				memcpy( ((char*)&P->header) + P->header_sz, msg, sz );
+				P->header_sz += sz;
+				return;
+			}
+			else {
+				memcpy( ((char*)&P->header) + P->header_sz, msg, ( PROTO_HEADER_SIZE - P->header_sz) );
+				P->header_sz += ( PROTO_HEADER_SIZE - P->header_sz);
+				msg += ( PROTO_HEADER_SIZE - P->header_sz);
+				sz -= ( PROTO_HEADER_SIZE - P->header_sz);
+				
+				if ( P->header.size[0] == 0xFF ) {
+					if ( sz <= PROTO_EXTRA_SIZE ) {
+						memcpy( ((char*)&P->header) + P->header_sz, msg, sz );
+						P->header_sz += sz;
+						return;
+					}
+
+					memcpy( ((char*)&P->header) + P->header_sz, msg, PROTO_EXTRA_SIZE );
+					P->header_sz += PROTO_EXTRA_SIZE;
+					msg += PROTO_EXTRA_SIZE;
+					sz -= PROTO_EXTRA_SIZE;
+				}
+			}
 		}
-		P->uncomplete.sz = P->header[0] * 256 + P->header[1];
+
+		P->header_sz = 0;
+		P->uncomplete.sz = get_size(&P->header);
 		P->uncomplete.msg = skynet_malloc(P->uncomplete.sz);
 		P->uncomplete_sz = P->uncomplete.sz;
+		P->uncomplete.servantname = P->header.servantname;
 	}
 }
 
@@ -279,6 +357,7 @@ package_create(void) {
 	memset(P, 0, sizeof(*P));
 	// heartbeat() will be call in package_init() function, so set P->heartbeat = -1 for not to close connection of client
 	P->heartbeat = -1;
+	P->uncomplete_sz = -1;
 	queue_init(&P->request, sizeof(struct request));
 	queue_init(&P->response, sizeof(struct response));
 	return P;
