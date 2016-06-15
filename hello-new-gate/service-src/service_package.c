@@ -9,7 +9,6 @@
 #define TIMEOUT "1000000"	// 10s
 
 struct response {
-	uint32_t servantname;
 	size_t sz;
 	void * msg;
 };
@@ -27,7 +26,7 @@ struct proto_header_t {
 	uint32_t servantname;
 	uint32_t checksum;
 	uint16_t flag;
-	uint8_t size[3]; // if size[0] < 0xFF then size[0] is the size of package, else size[1] x 0x100 + size[2] is the size of package
+	uint8_t size[3]; // If size[0] < 0xFF then size[0] is the size of package; otherwise, size[1] x 0x100 + size[2] is the size of package
 };
 #pragma pack(pop)
 
@@ -139,14 +138,14 @@ command(struct skynet_context *ctx, struct package *P, int session, uint32_t sou
 	};
 }
 
-static void
-dump_hex(const uint8_t *msg, int sz) {
-	int i;
-	for (i = 0; i < sz; i++)
-		printf("%02X ", msg[i]);
-	printf("\n");
-	printf("----------------- \n");
-}
+// static void
+// dump_hex(const uint8_t *msg, int sz) {
+//	int i;
+//	for (i = 0; i < sz; i++)
+//		printf("%02X ", msg[i]);
+//	printf("\n");
+//	printf("----------------- \n");
+// }
 
 static void
 new_message(struct package *P, const uint8_t *msg, int sz) {
@@ -235,10 +234,12 @@ new_message(struct package *P, const uint8_t *msg, int sz) {
 		}
 
 		P->header_sz = 0;
-		P->uncomplete.sz = get_size(&P->header);
+		P->uncomplete.sz = get_size(&P->header) + sizeof(P->header);
 		P->uncomplete.msg = skynet_malloc(P->uncomplete.sz);
 		P->uncomplete_sz = P->uncomplete.sz;
-		P->uncomplete.servantname = P->header.servantname;
+
+		memcpy(P->uncomplete.msg + P->uncomplete.sz - P->uncomplete_sz, &P->header, sizeof(P->header));
+		P->uncomplete_sz -= sizeof(P->header);
 	}
 }
 
