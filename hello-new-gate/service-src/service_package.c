@@ -275,7 +275,9 @@ socket_message(struct skynet_context *ctx, struct package *P, const struct skyne
 		if (smsg->id != P->fd) {
 			skynet_error(ctx, "Invalid fd (%d), should be (%d)", smsg->id, P->fd);
 		} else {
-			// todo: log when SKYNET_SOCKET_TYPE_ERROR
+			if (smsg->type == SKYNET_SOCKET_TYPE_ERROR) {
+				skynet_error(ctx, "Socket error fd(%d)", smsg->id);
+			}
 			response(ctx, P);
 			service_exit(ctx, P);
 		}
