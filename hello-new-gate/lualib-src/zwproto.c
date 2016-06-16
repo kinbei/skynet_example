@@ -21,6 +21,35 @@ getbuffer(lua_State *L, int index, size_t *sz, size_t *complete_sz) {
 	return buffer;
 }
 
+#define ENCODE_BUFFERSIZE 2050
+#define ENCODE_MAXSIZE 0x1000000
+
+static void
+pushfunction_withbuffer(lua_State *L, const char * name, lua_CFunction func) {
+	lua_newuserdata(L, ENCODE_BUFFERSIZE);
+	lua_pushinteger(L, ENCODE_BUFFERSIZE);
+	lua_pushcclosure(L, func, 2);
+	lua_setfield(L, -2, name);
+}
+
+static void *
+expand_buffer(lua_State *L, int osz, int nsz) {
+	void *output;
+	do {
+		osz *= 2;
+	} while (osz < nsz);
+	if (osz > ENCODE_MAXSIZE) {
+		luaL_error(L, "object is too large (>%d)", ENCODE_MAXSIZE);
+		return NULL;
+	}
+	output = lua_newuserdata(L, osz);
+	lua_replace(L, lua_upvalueindex(1));
+	lua_pushinteger(L, osz);
+	lua_replace(L, lua_upvalueindex(2));
+
+	return output;
+}
+
 #define READ_UINT(type) \
 do \
 { \
@@ -38,6 +67,26 @@ do \
 } \
 while (0); \
 
+#define WRITE_UINT(type) \
+do \
+{ \
+	void * buffer = lua_touserdata(L, lua_upvalueindex(1)); \
+	int sz = lua_tointeger(L, lua_upvalueindex(2)); \
+	uint8_t v = (uint8_t)luaL_checkinteger(L, 1); \
+	size_t complete_sz = luaL_checkinteger(L, 2); \
+	luaL_argcheck(L, sz >= complete_sz, 2, "Invalid complete_sz param"); \
+	if ( (sz - complete_sz) < sizeof(v) ) { \
+		buffer = expand_buffer(L, sz, sz*2); \
+		sz *= 2; \
+		luaL_argcheck(L, buffer != NULL, 0, "Invalid buffer stream"); \
+	} \
+	memcpy(buffer+complete_sz, &v, sizeof(v)); \
+	complete_sz += sizeof(v); \
+	lua_pushinteger(L, complete_sz); \
+	return 1; \
+} \
+while (0);
+
 /*
  * msg, sz, complete_sz -> number, complete_sz 
  */
@@ -46,9 +95,22 @@ lreaduint8(lua_State *L) {
 	READ_UINT(uint8_t);
 }
 
+/*
+ * number, complete_sz -> complete_sz
+ */
+static int
+lwriteuint8(lua_State *L) {
+	WRITE_UINT(uint8_t);
+}
+
 static int
 lreaduint16(lua_State *L) {
 	READ_UINT(uint16_t);
+}
+
+static int
+lwriteuint16(lua_State *L) {
+	WRITE_UINT(uint16_t);
 }
 
 static int
@@ -57,8 +119,18 @@ lreaduint32(lua_State *L) {
 }
 
 static int
+lwriteuint32(lua_State *L) {
+	WRITE_UINT(uint32_t);
+}
+
+static int
 lreaduint64(lua_State *L) {
 	READ_UINT(uint64_t);
+}
+
+static int
+lwriteuint64(lua_State *L) {
+	WRITE_UINT(uint64_t);
 }
 
 #define NUMBER_TYPE_0_BIT 1 // 0
@@ -133,6 +205,89 @@ lreadnumber(lua_State *L) {
 	}
 }
 
+#define EXPAND_BUFFER(nsz) \
+do \
+{ \
+	if ( (sz - complete_sz) < nsz ) { \
+		buffer = expand_buffer(L, sz, sz*2); \
+		sz *= 2; \
+		luaL_argcheck(L, buffer != NULL, 0, "Invalid buffer stream"); \
+	} \
+}while ( 0 ); \
+
+
+/*
+ * number, complete_sz -> complete_sz
+ */
+static int
+lwritenumber(lua_State *L) {
+	void * buffer = lua_touserdata(L, lua_upvalueindex(1));
+	int sz = lua_tointeger(L, lua_upvalueindex(2));
+	uint64_t v = luaL_checkinteger(L, 1);
+	size_t complete_sz = luaL_checkinteger(L, 2);
+	luaL_argcheck(L, sz >= complete_sz, 2, "Invalid complete_sz param");
+
+	// need a byte to write number type
+	EXPAND_BUFFER(sizeof(uint8_t));
+
+	if ( v == 0 ) {
+		uint8_t type = NUMBER_TYPE_0_BIT;
+		memcpy(buffer+complete_sz, &type, sizeof(type));
+		complete_sz += sizeof(type);
+	} 
+	else if ( v < 0x100 ) {
+		// write number type
+		uint8_t type = NUMBER_TYPE_0_BIT;
+		memcpy(buffer+complete_sz, &type, sizeof(type));
+		complete_sz += sizeof(type);
+
+		// write number value
+		EXPAND_BUFFER(sizeof(uint8_t));
+		uint8_t r = (uint8_t)v;
+		memcpy(buffer+complete_sz, &r, sizeof(r));
+		complete_sz += sizeof(r);
+	}
+	else if ( v < 0x10000 ) {
+		// write number type
+		uint8_t type = NUMBER_TYPE_2_BIT;
+		memcpy(buffer+complete_sz, &type, sizeof(type));
+		complete_sz += sizeof(type);
+
+		// write number value
+		EXPAND_BUFFER(sizeof(uint16_t));
+		uint16_t r = (uint16_t)v;
+		memcpy(buffer+complete_sz, &r, sizeof(r));
+		complete_sz += sizeof(r);
+	}
+	else if ( v < 0x100000000 ) {
+		// write number type
+		uint8_t type = NUMBER_TYPE_4_BIT;
+		memcpy(buffer+complete_sz, &type, sizeof(type));
+		complete_sz += sizeof(type);
+
+		// write number value
+		EXPAND_BUFFER(sizeof(uint32_t));
+		uint32_t r = (uint32_t)v;
+		memcpy(buffer+complete_sz, &r, sizeof(r));
+		complete_sz += sizeof(r);
+	}
+	else {
+		// write number type
+		uint8_t type = NUMBER_TYPE_8_BIT;
+		memcpy(buffer+complete_sz, &type, sizeof(type));
+		complete_sz += sizeof(type);
+
+		// write number value
+		EXPAND_BUFFER(sizeof(uint64_t));
+		uint64_t r = (uint64_t)v;
+		memcpy(buffer+complete_sz, &r, sizeof(r));
+		complete_sz += sizeof(r);
+	}
+	
+	lua_pushinteger(L, complete_sz);
+	return 1;
+}
+
 static int
 lreadstring(lua_State *L) {
 	const void *buffer = NULL;
@@ -162,6 +317,44 @@ lreadstring(lua_State *L) {
 	return 2;
 }
 
+/*
+ * string, complete_sz -> complete_sz
+ */
+static int
+lwritestring(lua_State *L) {
+	void * buffer = lua_touserdata(L, lua_upvalueindex(1));
+	int sz = lua_tointeger(L, lua_upvalueindex(2));
+	size_t l = 0;
+	const char *s = lua_tolstring(L, 1, &l);
+	size_t complete_sz = luaL_checkinteger(L, 2);
+	luaL_argcheck(L, sz >= complete_sz, 2, "Invalid complete_sz param");
+
+	if ( l >= 0xFF ) {
+		uint8_t ssz = 0xFF;
+		uint16_t lsz = l;
+		EXPAND_BUFFER(sizeof(ssz) + sizeof(lsz));
+		memcpy(buffer+complete_sz, &ssz, sizeof(ssz));
+		complete_sz += sizeof(ssz);
+		memcpy(buffer+complete_sz, &lsz, sizeof(lsz));
+		complete_sz += sizeof(lsz);
+		EXPAND_BUFFER(lsz);
+		memcpy(buffer+complete_sz, s, lsz);
+		complete_sz += lsz;
+	}
+	else {
+		uint8_t ssz = l;
+		EXPAND_BUFFER(sizeof(ssz));
+		memcpy(buffer+complete_sz, &ssz, sizeof(ssz));
+		complete_sz += sizeof(ssz);
+		EXPAND_BUFFER(ssz);
+		memcpy(buffer+complete_sz, s, ssz);
+		complete_sz += ssz;
+	}
+
+	lua_pushinteger(L, complete_sz);
+	return 1;
+}
+
 int
 luaopen_zwproto_core(lua_State *L) {
 	luaL_checkversion(L);
@@ -173,9 +366,17 @@ luaopen_zwproto_core(lua_State *L) {
 		{ "readuint64", lreaduint64 },
 		{ "readnumber", lreadnumber },
 		{ "readstring", lreadstring },
+				
 		{ NULL, NULL },
 	};
 
 	luaL_newlib(L, l);
+	pushfunction_withbuffer(L, "writeuint8", lwriteuint8);
+	pushfunction_withbuffer(L, "writeuint16", lwriteuint16);
+	pushfunction_withbuffer(L, "writeuint32", lwriteuint32);
+	pushfunction_withbuffer(L, "writeuint64", lwriteuint64);
+	pushfunction_withbuffer(L, "writenumber", lwritenumber);
+	pushfunction_withbuffer(L, "writestring", lwritestring);
+
 	return 1;
 }

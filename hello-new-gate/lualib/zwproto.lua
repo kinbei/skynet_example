@@ -26,6 +26,19 @@ local function zwproto_parse_request(msg, sz)
 	return request
 end
 
+local function zwproto_pack_response(servantname, response)
+	local complete_sz = 0
+	complete_sz = zwproto.writeuint32( 0xC0121212, compelte_sz ) -- magic
+	complete_sz = zwproto.writeuint8( 0x00, complete_sz ) -- version
+	complete_sz = zwproto.writeuint32( 0x00, complete_sz ) -- serialno
+	complete_sz = zwproto.writeuint32( 0x80000000 | servantname, complete_sz ) -- servantname
+	complete_sz = zwproto.writeuint32( 0x00, complete_sz ) -- checksum
+	complete_sz = zwproto.writeuint16( 0x00, complete_sz ) -- flag
+	
+
+end
+
 return {
-	parse = zwproto_parse_request,
+	unpack_request = zwproto_parse_request,
+	pack_response = zwproto_pack_response,
 }
