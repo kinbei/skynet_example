@@ -24,14 +24,6 @@ getbuffer(lua_State *L, int index, size_t *sz, size_t *complete_sz) {
 #define ENCODE_BUFFERSIZE 2050
 #define ENCODE_MAXSIZE 0x1000000
 
-static void
-pushfunction_withbuffer(lua_State *L, const char * name, lua_CFunction func) {
-	lua_newuserdata(L, ENCODE_BUFFERSIZE);
-	lua_pushinteger(L, ENCODE_BUFFERSIZE);
-	lua_pushcclosure(L, func, 2);
-	lua_setfield(L, -2, name);
-}
-
 static void *
 expand_buffer(lua_State *L, int osz, int nsz) {
 	void *output;
@@ -72,7 +64,7 @@ do \
 { \
 	void * buffer = lua_touserdata(L, lua_upvalueindex(1)); \
 	int sz = lua_tointeger(L, lua_upvalueindex(2)); \
-	uint8_t v = (uint8_t)luaL_checkinteger(L, 1); \
+	type v = (type)luaL_checkinteger(L, 1); \
 	size_t complete_sz = luaL_checkinteger(L, 2); \
 	luaL_argcheck(L, sz >= complete_sz, 2, "Invalid complete_sz param"); \
 	if ( (sz - complete_sz) < sizeof(v) ) { \
@@ -355,6 +347,40 @@ lwritestring(lua_State *L) {
 	return 1;
 }
 
+/*
+ * complete_sz --> string
+ */
+static int
+lgetbuffer(lua_State *L) {
+	void * buffer = lua_touserdata(L, lua_upvalueindex(1));
+	int sz = lua_tointeger(L, lua_upvalueindex(2));
+	size_t complete_sz = luaL_checkinteger(L, 1);
+	luaL_argcheck(L, sz >= complete_sz, 1, "Invalid complete_sz param");
+
+	lua_pushlstring(L, buffer, complete_sz);
+	return 1;
+}
+
+/*
+ * string, complete_sz --> complete_sz
+ */
+static int
+lwritebytes(lua_State *L) {
+	void * buffer = lua_touserdata(L, lua_upvalueindex(1));
+	int sz = lua_tointeger(L, lua_upvalueindex(2));
+	size_t l = 0;
+	const char *s = lua_tolstring(L, 1, &l);
+	size_t complete_sz = luaL_checkinteger(L, 2);
+	luaL_argcheck(L, sz >= complete_sz, 1, "Invalid compelte_sz param");
+
+	EXPAND_BUFFER(l);
+	memcpy(buffer+complete_sz, s, l);
+	complete_sz += l;
+	
+	lua_pushinteger(L, complete_sz);
+	return 1;
+}
+
 int
 luaopen_zwproto_core(lua_State *L) {
 	luaL_checkversion(L);
@@ -366,17 +392,24 @@ luaopen_zwproto_core(lua_State *L) {
 		{ "readuint64", lreaduint64 },
 		{ "readnumber", lreadnumber },
 		{ "readstring", lreadstring },
+
+		{ "writeuint8", lwriteuint8},
+		{ "writeuint16", lwriteuint16},
+		{ "writeuint32", lwriteuint32},
+		{ "writeuint64", lwriteuint64},
+		{ "writenumber", lwritenumber},
+		{ "writestring", lwritestring},
+		{ "getbuffer", lgetbuffer},
+		{ "writebytes", lwritebytes},
 				
 		{ NULL, NULL },
 	};
 
 	luaL_newlib(L, l);
-	pushfunction_withbuffer(L, "writeuint8", lwriteuint8);
-	pushfunction_withbuffer(L, "writeuint16", lwriteuint16);
-	pushfunction_withbuffer(L, "writeuint32", lwriteuint32);
-	pushfunction_withbuffer(L, "writeuint64", lwriteuint64);
-	pushfunction_withbuffer(L, "writenumber", lwritenumber);
-	pushfunction_withbuffer(L, "writestring", lwritestring);
+
+	lua_newuserdata(L, ENCODE_BUFFERSIZE);
+	lua_pushinteger(L, ENCODE_BUFFERSIZE);
+	luaL_setfuncs(L, l, 2);
 
 	return 1;
 }

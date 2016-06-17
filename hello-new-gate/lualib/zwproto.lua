@@ -5,7 +5,7 @@ local netimpl = {}
 netimpl[ NETDEFINE.HEARTBEAT ] = require "netimpl.system.heartbeat"
 netimpl[ NETDEFINE.LM_LOGIN_USER ] = require "netimpl.loginmgr.lm_login_user"
 
-local function zwproto_parse_request(msg, sz)
+local function request_unpack(msg, sz)
 	local request = {}
 	local complete_sz = 0
 
@@ -26,19 +26,31 @@ local function zwproto_parse_request(msg, sz)
 	return request
 end
 
-local function zwproto_pack_response(servantname, response)
+-- return buffer
+local function response_pack(servantname, response)
 	local complete_sz = 0
-	complete_sz = zwproto.writeuint32( 0xC0121212, compelte_sz ) -- magic
+	assert( netimpl[servantname], string.format("Can't found response handler(0x%08X)", servantname) )
+	local buffer = netimpl[servantname].response_pack( response, complete_sz )
+	
+	complete_sz = 0
+	complete_sz = zwproto.writeuint32( 0xC0000001, complete_sz ) -- magic
 	complete_sz = zwproto.writeuint8( 0x00, complete_sz ) -- version
 	complete_sz = zwproto.writeuint32( 0x00, complete_sz ) -- serialno
 	complete_sz = zwproto.writeuint32( 0x80000000 | servantname, complete_sz ) -- servantname
 	complete_sz = zwproto.writeuint32( 0x00, complete_sz ) -- checksum
 	complete_sz = zwproto.writeuint16( 0x00, complete_sz ) -- flag
-	
-
+	local sz = string.len(buffer)
+	if sz < 0xFF then
+		complete_sz = zwproto.writeuint8(sz, complete_sz)
+	else
+		complete_sz = zwproto.writeuint8(0xFF, compelte_sz)
+		complete_sz = zwproto.writeuint16(sz, compelte_sz)
+	end
+	complete_sz = zwproto.writebytes(buffer, complete_sz)
+	return zwproto.getbuffer(complete_sz)
 end
 
 return {
-	unpack_request = zwproto_parse_request,
-	pack_response = zwproto_pack_response,
+	request_unpack = request_unpack,
+	response_pack = response_pack,
 }
