@@ -2,12 +2,11 @@ local zwproto = require "zwproto.core"
 local skynet = require "skynet"
 
 local player_info = {}
-function player_info.serial( player, complete_sz )
-	complete_sz = zwproto.writenumber( player.player_id, complete_sz )
-	complete_sz = zwproto.writestring( player.nickname, complete_sz )
-	complete_sz = zwproto.writenumber( player.sex, complete_sz )
-	complete_sz = zwproto.writenumber( player.level, complete_sz )
-	return complete_sz
+function player_info.serial(player)
+	zwproto.writenumber(player.player_id)
+	zwproto.writestring(player.nickname)
+	zwproto.writenumber(player.sex)
+	zwproto.writenumber(player.level)
 end
 
 local protocol = {}
@@ -20,21 +19,20 @@ local protocol = {}
 -- challenge_id, number
 -- vecPlayers, *player_info
 
-function protocol.request_unserial( req, msg, sz, complete_sz )
-	req.session, complete_sz = zwproto.readstring(msg, sz, complete_sz)
-	req.imei, compelete_sz = zwproto.readstring(msg, sz, complete_sz)
-	return complete_sz
+function protocol.request_unserial()
+	local req = {}
+	req.session = zwproto.readstring()
+	req.imei = zwproto.readstring()
+	return req
 end
 
-function protocol.response_pack( resp )
-	local complete_sz = 0
-	complete_sz = zwproto.writenumber( resp.retcode, complete_sz )
-	complete_sz = zwproto.writenumber( resp.challenge_id, complete_sz )
-	complete_sz = zwproto.writenumber( #resp.vecPlayers, complete_sz )
+function protocol.response_pack(resp)
+	zwproto.writenumber(resp.retcode)
+	zwproto.writenumber(resp.challenge_id)
+	zwproto.writenumber(#resp.vecPlayers)
 	for _, v in ipairs(resp.vecPlayers) do
-		complete_sz = player_info.serial( v, complete_sz )
+		player_info.serial(v)
 	end
-	return zwproto.getbuffer(complete_sz)
 end
 
 return protocol

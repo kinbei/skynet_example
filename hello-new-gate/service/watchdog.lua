@@ -20,7 +20,7 @@ CMD[NETDEFINE.LM_LOGIN_USER] = function(fd, request)
 	resp.challenge_id = 0xFFFFFFFF
 	resp.vecPlayers = {}
 	table.insert( resp.vecPlayers, { player_id = 12345, nickname = "nickname", sex = 1, level = 100 } )
-	socket.write(fd, zwproto.response_pack( NETDEFINE.LM_LOGIN_USER, resp ))
+	return resp
 end
 
 local function get_request(fd)
@@ -35,7 +35,7 @@ skynet.start( function()
 		skynet.error(string.format("%s connected as %d" , addr, fd))
 		proxy.subscribe(fd)
 		while true do
-			local ok, req = xpcall(get_request, debug.traceback, fd)
+			local ok, req, header = xpcall(get_request, debug.traceback, fd)
 			if not ok then
 				-- Todo if agent exist, notify agent close
 				skynet.error("CLOSE", req)
@@ -45,13 +45,15 @@ skynet.start( function()
 			if socket_agent[fd] ~= nil then
 				
 			else
-				if CMD[req.servantname] == nil then
-					skynet.error( string.format("Unknown servantname(0x%08X) close connection", req.servantname) )
+				if CMD[header.servantname] == nil then
+					skynet.error( string.format("Unknown servantname(0x%08X) close connection", header.servantname) )
 					proxy.close(fd) -- Close connection of client
 					break
 				end
-				CMD[req.servantname](fd, req)
-				-- Todo send response to client
+				local resp = CMD[header.servantname](fd, req)
+				if resp then
+					socket.write(fd, zwproto.response_pack( header.servantname, resp ))
+				end
 			end
 		end
 	end)
