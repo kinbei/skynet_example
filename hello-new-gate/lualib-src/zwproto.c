@@ -197,8 +197,17 @@ do \
 	complete_sz += sizeof(v); \
 	updatecompletesz(L, lua_upvalueindex(FIELD_WRITE_COMPLETE_SZ), complete_sz); \
 	return 0; \
-} \
-while (0);
+} while (0); \
+
+#define EXPAND_BUFFER(nsz) \
+do \
+{ \
+	if ( (sz - complete_sz) < nsz ) { \
+		buffer = expandbuffer(L, sz, sz*2); \
+		sz *= 2; \
+		luaL_argcheck(L, buffer != NULL, 0, "Invalid buffer stream"); \
+	} \
+}while ( 0 ); \
 
 /*
  * return number
@@ -244,6 +253,72 @@ lreaduint64(lua_State *L) {
 static int
 lwriteuint64(lua_State *L) {
 	WRITE_UINT(uint64_t);
+}
+
+static int
+lreadsize(lua_State *L) {
+	const void * buffer = NULL;
+	size_t sz = 0;
+	size_t complete_sz = 0;
+	buffer = getreadbuffer(L, &sz, &complete_sz);
+	luaL_argcheck(L, buffer != NULL, 1, "Invalid buffer steam");
+	CHECK_COMPLETE_SZ(sz, complete_sz);
+
+	uint16_t r = 0;
+
+	uint8_t sv = 0;
+	if ( !((sz - complete_sz) >= sizeof(sv)) ) {
+		luaL_error(L, "Not enough buffer(%d>%d)", sz - complete_sz, sizeof(sv));
+		return 0;
+	}
+	memcpy(&sv, buffer+complete_sz, sizeof(sv));
+	complete_sz += sizeof(sv);
+	r = sv;
+
+	if ( sv == 0xFF ) {
+		uint16_t lv = 0;
+		if ( !((sz - complete_sz) >= sizeof(lv)) ) {
+			luaL_error(L, "Not enough buffer(%d>%d)", sz - complete_sz, sizeof(lv));
+			return 0;
+		}
+		memcpy(&lv, buffer+complete_sz, sizeof(lv));
+		complete_sz += sizeof(lv);
+		r = lv;
+	}
+
+	updatecompletesz(L, lua_upvalueindex(FIELD_READ_COMPLETE_SZ), complete_sz);
+	lua_pushinteger(L, r);
+	return 1;
+}
+
+static int
+lwritesize(lua_State *L) {
+	void *buffer = NULL;
+	size_t sz = 0;
+	size_t complete_sz = 0;
+	buffer = getwritebuffer(L, &sz, &complete_sz);
+	luaL_argcheck(L, buffer != NULL, 1, "Invalid buffer steam");
+	CHECK_COMPLETE_SZ(sz, complete_sz);
+	EXPAND_BUFFER(sizeof(uint8_t));
+	uint64_t ov = luaL_checkinteger(L, 1);
+	
+	if ( ov >= 0xFF ) {
+		uint8_t flag = 0xFF;
+		memcpy(buffer+complete_sz, &flag, sizeof(flag));
+		complete_sz += sizeof(flag);
+	
+		EXPAND_BUFFER(sizeof(uint16_t));
+		uint16_t v = (uint16_t)ov;
+		memcpy(buffer+complete_sz, &v, sizeof(v));
+		complete_sz += sizeof(flag);
+	}
+	else {
+		uint8_t v = (uint8_t)ov;
+		memcpy(buffer+complete_sz, &v, sizeof(v));
+		complete_sz += sizeof(v);
+	}
+	updatecompletesz(L, lua_upvalueindex(FIELD_WRITE_COMPLETE_SZ), complete_sz);
+	return 0;
 }
 
 #define NUMBER_TYPE_0_BIT 1 // 0
@@ -326,17 +401,6 @@ lreadnumber(lua_State *L) {
 	}
 }
 
-#define EXPAND_BUFFER(nsz) \
-do \
-{ \
-	if ( (sz - complete_sz) < nsz ) { \
-		buffer = expandbuffer(L, sz, sz*2); \
-		sz *= 2; \
-		luaL_argcheck(L, buffer != NULL, 0, "Invalid buffer stream"); \
-	} \
-}while ( 0 ); \
-
-
 /*
  * number
  */
@@ -360,7 +424,7 @@ lwritenumber(lua_State *L) {
 	} 
 	else if ( v < 0x100 ) {
 		// write number type
-		uint8_t type = NUMBER_TYPE_0_BIT;
+		uint8_t type = NUMBER_TYPE_1_BIT;
 		memcpy(buffer+complete_sz, &type, sizeof(type));
 		complete_sz += sizeof(type);
 
@@ -408,8 +472,7 @@ lwritenumber(lua_State *L) {
 	}
 	
 	updatecompletesz(L, lua_upvalueindex(FIELD_WRITE_COMPLETE_SZ), complete_sz);
-	lua_pushinteger(L, complete_sz);
-	return 1;
+	return 0;
 }
 
 static int
@@ -508,6 +571,33 @@ lgetwritebuffer(lua_State *L) {
 }
 
 /*
+ * return string
+ */
+static int
+lgetreadbuffer(lua_State *L) {
+	//debug_assert( lua_type(L, lua_upvalueindex(UPVALUE_TABLE)) == LUA_TTABLE );
+
+	lua_pushvalue(L, lua_upvalueindex(FIELD_READ_BUFFER));
+	lua_gettable(L, lua_upvalueindex(UPVALUE_TABLE));
+	const void * buffer = lua_touserdata(L, -1);
+	lua_pop(L, 1);
+
+	lua_pushvalue(L, lua_upvalueindex(FIELD_READ_SZ));
+	lua_gettable(L, lua_upvalueindex(UPVALUE_TABLE));
+	size_t sz = lua_tointeger(L, -1);
+	lua_pop(L, 1);
+
+	lua_pushvalue(L, lua_upvalueindex(FIELD_READ_COMPLETE_SZ));
+	lua_gettable(L, lua_upvalueindex(UPVALUE_TABLE));
+	size_t complete_sz = lua_tointeger(L, -1);
+	lua_pop(L, 1);
+
+	luaL_argcheck(L, sz >= complete_sz, 1, "Invalid complete_sz param");
+	lua_pushlstring(L, buffer, sz);
+	return 1;
+}
+
+/*
  * string, complete_sz --> complete_sz
  */
 static int
@@ -539,16 +629,19 @@ luaopen_zwproto_core(lua_State *L) {
 		{ "readuint64", lreaduint64 },
 		{ "readnumber", lreadnumber },
 		{ "readstring", lreadstring },
+		{ "readsize", lreadsize },
 
-		{ "writeuint8", lwriteuint8},
-		{ "writeuint16", lwriteuint16},
-		{ "writeuint32", lwriteuint32},
-		{ "writeuint64", lwriteuint64},
-		{ "writenumber", lwritenumber},
-		{ "writestring", lwritestring},
+		{ "writeuint8", lwriteuint8 },
+		{ "writeuint16", lwriteuint16 },
+		{ "writeuint32", lwriteuint32 },
+		{ "writeuint64", lwriteuint64 },
+		{ "writenumber", lwritenumber },
+		{ "writestring", lwritestring },
+		{ "writesize", lwritesize },
 
-		{ "getwritebuffer", lgetwritebuffer},
-		{ "writebytes", lwritebytes},
+		{ "getreadbuffer", lgetreadbuffer },
+		{ "getwritebuffer", lgetwritebuffer },
+		{ "writebytes", lwritebytes },
 
 		{ "resetreadbuffer", lresetreadbuffer },
 		{ "resetwritebuffer", lresetwritebuffer },
@@ -592,6 +685,7 @@ luaopen_zwproto_core(lua_State *L) {
 	lua_pushinteger(L, 0);
 	lua_settable(L, -3);
 
+	// sharing previous table as upvalue
 	luaL_setfuncs(L, l, 7);
 	return 1;
 }

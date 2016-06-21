@@ -4,6 +4,9 @@ local NETDEFINE = require "netimpl.netdefine"
 local netimpl = {}
 netimpl[ NETDEFINE.HEARTBEAT ] = require "netimpl.system.heartbeat"
 netimpl[ NETDEFINE.LM_LOGIN_USER ] = require "netimpl.loginmgr.lm_login_user"
+netimpl[ NETDEFINE.LM_LOGIN_PLAYER ] = require "netimpl.loginmgr.lm_login_player"
+netimpl[ NETDEFINE.LM_CREATE_PLAYER ] = require "netimpl.loginmgr.lm_create_player"
+netimpl[ NETDEFINE.GW_PLAYER_ONLINE ] = require "netimpl.gateway.gw_player_online"
 
 local function request_unpack(msg, sz)
 	local header = {}
@@ -21,21 +24,21 @@ local function request_unpack(msg, sz)
 	if not netimpl[ header.servantname ] then
 		error( string.format("Can't found the corresponding servantname(0x%08X) of request parser", header.servantname) )
 	end
-	return netimpl[ header.servantname ].request_unserial(), header
+	return netimpl[ header.servantname ].request_unpack(), header
 end
 
 -- return buffer
-local function response_pack(servantname, response)
-	assert( netimpl[servantname], string.format("Can't found response handler(0x%08X)", servantname) )
+local function response_pack(header, response)
+	assert( netimpl[header.servantname], string.format("Can't found response handler(0x%08X)", header.servantname) )
 	zwproto.resetwritebuffer(0)
-	netimpl[servantname].response_pack( response )
+	netimpl[header.servantname].response_pack( response )
 	local buffer = zwproto.getwritebuffer(complete_sz)
 
 	zwproto.resetwritebuffer(0)
 	zwproto.writeuint32(0xC0074346) -- magic
 	zwproto.writeuint8(0x00) -- version
-	zwproto.writeuint32(0x00) -- serialno
-	zwproto.writeuint32(0x80000000 | servantname) -- servantname
+	zwproto.writeuint32(header.serialno) -- serialno
+	zwproto.writeuint32(0x80000000 | header.servantname) -- servantname
 	zwproto.writeuint32(0x00) -- checksum
 	zwproto.writeuint16(0x00) -- flag
 	

@@ -1,9 +1,8 @@
 local zwproto = require "zwproto.core"
-local skynet = require "skynet"
 
 local player_info = {}
-function player_info.serial(player)
-	zwproto.writenumber(player.player_id)
+function player_info.pack(player)
+	zwproto.writeuint64(player.player_id)
 	zwproto.writestring(player.nickname)
 	zwproto.writenumber(player.sex)
 	zwproto.writenumber(player.level)
@@ -19,7 +18,7 @@ local protocol = {}
 -- challenge_id, number
 -- vecPlayers, *player_info
 
-function protocol.request_unserial()
+function protocol.request_unpack()
 	local req = {}
 	req.session = zwproto.readstring()
 	req.imei = zwproto.readstring()
@@ -31,7 +30,7 @@ function protocol.response_pack(resp)
 	zwproto.writenumber(resp.challenge_id)
 	zwproto.writenumber(#resp.vecPlayers)
 	for _, v in ipairs(resp.vecPlayers) do
-		player_info.serial(v)
+		player_info.pack(v)
 	end
 end
 
