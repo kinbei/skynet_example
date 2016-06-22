@@ -22,13 +22,18 @@ local function request_unpack(msg, sz)
 	header.llen = zwproto.readuint16()
 
 	if not netimpl[ header.servantname ] then
-		error( string.format("Can't found the corresponding servantname(0x%08X) of request parser", header.servantname) )
+		-- error( string.format("Can't found the corresponding servantname(0x%08X) of request parser", header.servantname) )
+		return require("netimpl.system.empty").request_unpack(), header
 	end
 	return netimpl[ header.servantname ].request_unpack(), header
 end
 
 -- return buffer
 local function response_pack(header, response)
+	if netimpl[header.servantname] == nil then
+		return ""
+	end
+
 	assert( netimpl[header.servantname], string.format("Can't found response handler(0x%08X)", header.servantname) )
 	zwproto.resetwritebuffer(0)
 	netimpl[header.servantname].response_pack( response )

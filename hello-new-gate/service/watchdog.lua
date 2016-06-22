@@ -97,16 +97,18 @@ skynet.start( function()
 				
 			else
 				if CMD[header.servantname] == nil then
-					skynet.error( string.format("Unknown servantname(0x%08X) close connection", header.servantname) )
-					proxy.close(fd) -- Close connection of client
-					break
-				end
-				local resp = CMD[header.servantname](fd, req)
-				if resp then
-					local buff = zwproto.response_pack( header, resp )
-					-- debugtools.print( "response to client" )
-					-- debugtools.print( debugtools.dumphex(buff) )
-					socket.write(fd, buff)
+					skynet.error( string.format("servantname(0x%08X) donothing", header.servantname) )
+					-- skynet.error( string.format("Unknown servantname(0x%08X) close connection", header.servantname) )
+					-- proxy.close(fd) -- Close connection of client
+					-- break
+				else
+					local resp = CMD[header.servantname](fd, req)
+					if resp then
+						local buff = zwproto.response_pack( header, resp )
+						-- debugtools.print( "response to client" )
+						-- debugtools.print( debugtools.dumphex(buff) )
+						socket.write(fd, buff)
+					end
 				end
 			end
 		end
