@@ -34,12 +34,14 @@ function proxy.subscribe(fd)
 	end
 end
 
+proxy.get_addr = get_addr
+
 function proxy.read(fd)
 	return skynet.rawcall(get_addr(fd), "text", "R")
 end
 
-function proxy.write(fd, msg, sz)
-	skynet.send(get_addr(fd), "client", msg, sz)
+function proxy.write(fd, msg)
+	skynet.send(get_addr(fd), "client", msg)
 end
 
 function proxy.close(fd)

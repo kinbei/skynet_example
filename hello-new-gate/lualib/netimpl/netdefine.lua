@@ -8,6 +8,7 @@ local NETDEFINE = {
 
 	-- gateway
 	GW_PLAYER_ONLINE = 0X00050001,
+	GW_PLAYER_MOVE = 0x00050002,
 }
 
 return NETDEFINE

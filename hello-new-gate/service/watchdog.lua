@@ -8,7 +8,7 @@ local debugtools = require "debugtools"
 
 local socket_agent = {} -- fd --> agent
 local CMD = {}
-local player_id = 0
+local global_player_id = 0
 
 CMD[NETDEFINE.HEARTBEAT] = function()
 	-- skynet.error( "heartbeat" )
@@ -16,13 +16,13 @@ end
 
 CMD[NETDEFINE.LM_LOGIN_USER] = function(fd, request)
 	skynet.error( string.format("lm_login_user|session(%s) imei(%s)", request.session, request.imei) )
-	player_id = player_id + 1
+	global_player_id = global_player_id + 1
 
 	local resp = {}
 	resp.retcode = ERRCODE.SUCCESS
 	resp.challenge_id = 0xFFFFFFFF
 	resp.vecPlayers = {}
-	table.insert( resp.vecPlayers, { player_id = player_id, nickname = string.format("nickname-%d", player_id), sex = 1, level = 100 } )
+	table.insert( resp.vecPlayers, { player_id = global_player_id, nickname = string.format("nickname-%d", global_player_id), sex = 1, level = 100 } )
 
 	debugtools.print( "player_id(%d) nickname(%s) sex(%d) level(%d)", resp.vecPlayers[1].player_id, resp.vecPlayers[1].nickname, resp.vecPlayers[1].sex, resp.vecPlayers[1].level )
 	return resp
@@ -43,11 +43,11 @@ end
 
 CMD[NETDEFINE.LM_CREATE_PLAYER] = function(fd, request)
 	skynet.error( string.format("lm_create_player|nickname(%s) profession_id(%d) sex(%d)", request.nick_name, request.profession_id, request.sex) )
-	player_id = player_id + 1
+	global_player_id = global_player_id + 1
 
 	local resp = {}
 	resp.retcode = ERRCODE.SUCCESS
-	resp.player_id = player_id
+	resp.player_id = global_player_id
 	return resp
 end
 
@@ -63,14 +63,18 @@ CMD[NETDEFINE.GW_PLAYER_ONLINE] = function(fd, request)
 	resp.avatar_common.sex = 1
 	resp.avatar_common.profession = 1
 	resp.avatar_common.level = 10
-	resp.avatar_common.map_x = 142
-	resp.avatar_common.map_y = 142
-	resp.avatar_common.map_z = 142
+	resp.avatar_common.map_x = 99
+	resp.avatar_common.map_y = 140
+	resp.avatar_common.map_z = 125
 	resp.avatar_common.direction = 0
 	resp.avatar_common.nick_name = string.format("nickname-%d", request.player_id)
 	resp.current_map_id = 1
 	resp.open_server_date = os.time()
 	resp.create_player_time = os.time()
+
+	local agent = skynet.newservice("agent")
+	skynet.call(agent, "lua", "init", {fd = fd, watchdog = skynet.self(), avatar_common = resp.avatar_common})
+	socket_agent[fd] = agent
 	return resp
 end
 
@@ -92,24 +96,24 @@ skynet.start( function()
 				skynet.error("CLOSE", req)
 				break
 			end
-			
+
+			local resp
 			if socket_agent[fd] ~= nil then
-				
+				resp = skynet.call(socket_agent[fd], "lua", "client", fd, req, header)					
 			else
 				if CMD[header.servantname] == nil then
-					skynet.error( string.format("servantname(0x%08X) donothing", header.servantname) )
-					-- skynet.error( string.format("Unknown servantname(0x%08X) close connection", header.servantname) )
-					-- proxy.close(fd) -- Close connection of client
-					-- break
+					skynet.error( string.format("Unknown servantname(0x%08X) close connection", header.servantname) )
+					proxy.close(fd) -- Close connection of client
+					break
 				else
-					local resp = CMD[header.servantname](fd, req)
-					if resp then
-						local buff = zwproto.response_pack( header, resp )
-						-- debugtools.print( "response to client" )
-						-- debugtools.print( debugtools.dumphex(buff) )
-						socket.write(fd, buff)
-					end
+					resp = CMD[header.servantname](fd, req)
 				end
+			end
+			if resp then
+				local buff = zwproto.response_pack( header, resp )
+				-- debugtools.print( "response to client" )
+				-- debugtools.print( debugtools.dumphex(buff) )
+				proxy.write(fd, buff)
 			end
 		end
 	end)

@@ -316,11 +316,7 @@ send_out(struct skynet_context *ctx, struct package *P, const void *msg, size_t 
 		skynet_error(ctx, "package too long (%08x)", (uint32_t)sz);
 		return;
 	}
-	uint8_t *p = skynet_malloc(sz + 2);
-	p[0] = (sz & 0xff00) >> 8;
-	p[1] = sz & 0xff;
-	memcpy(p+2, msg, sz);
-	skynet_socket_send(ctx, P->fd, p, sz+2);
+	skynet_socket_send(ctx, P->fd, (void*)msg, sz);
 }
 
 static int

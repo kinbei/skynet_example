@@ -7,6 +7,7 @@ netimpl[ NETDEFINE.LM_LOGIN_USER ] = require "netimpl.loginmgr.lm_login_user"
 netimpl[ NETDEFINE.LM_LOGIN_PLAYER ] = require "netimpl.loginmgr.lm_login_player"
 netimpl[ NETDEFINE.LM_CREATE_PLAYER ] = require "netimpl.loginmgr.lm_create_player"
 netimpl[ NETDEFINE.GW_PLAYER_ONLINE ] = require "netimpl.gateway.gw_player_online"
+netimpl[ NETDEFINE.GW_PLAYER_MOVE ] = require "netimpl.gateway.gw_player_move"
 
 local function request_unpack(msg, sz)
 	local header = {}
