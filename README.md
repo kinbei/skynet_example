@@ -1,3 +1,3 @@
 # skynet-hello-world
 
-基于skynet写的一个demo
+鍩轰簬skynet鍐欑殑涓�涓猟emo
