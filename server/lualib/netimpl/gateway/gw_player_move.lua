@@ -8,11 +8,18 @@ function protocol.request_unpack()
 
 	local count = zwproto.readsize()
 	req.steps = {}
+
+	assert(req.steps)
 	for i = 1, count do
+		assert(req.steps)
+
 		local step = {}
 		step.x = zwproto.readuint16()
 		step.y = zwproto.readuint16()
 		step.z = zwproto.readuint16()
+
+		assert(req.steps)
+		assert(i)
 		req.steps[i] = step
 	end
 

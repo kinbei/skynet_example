@@ -10,8 +10,9 @@ bootstrap = "snlua bootstrap"	-- The service for bootstrap
 standalone = "0.0.0.0:2013"
 luaservice = root.."service/?.lua;"..root.."lualib/?.lua;".."./service/?.lua;".."./?.lua;"
 lualoader = root.."lualib/loader.lua"
-lua_path = root.."lualib/?.lua;"..root.."lualib/?/init.lua;".."./lualib/?.lua"
+lua_path = root.."lualib/?.lua;"..root.."lualib/?/init.lua;".."./lualib/?.lua;./lualib/scene/?.lua;"
 lua_cpath = root.."luaclib/?.so;".."./lualib/?.so;"
+
 -- preload = "./examples/preload.lua"	-- run preload.lua before every lua service run
 -- snax = root.."examples/?.lua;"..root.."test/?.lua"
 -- snax_interface_g = "snax_g"
