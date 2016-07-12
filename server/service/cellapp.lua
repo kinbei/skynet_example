@@ -135,6 +135,7 @@ skynet.start( function()
 	end)
 
 	-- aoi broadcast
+	--[[
 	add_timer(300, function()
 		for agent, player in pairs(agent_player) do
 			if #player.aoi_list ~= 0 then
@@ -143,4 +144,5 @@ skynet.start( function()
 			end
 		end
 	end)
+	--]]
 end)
