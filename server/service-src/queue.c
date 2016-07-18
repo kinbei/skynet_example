@@ -51,7 +51,7 @@ void queue_push(struct queue *q, const void *value) {
 		q->tail = q->cap ? q->cap : 1;
 		q->cap = cap;
 		q->buffer = tmp;
-		slot = tmp;
+		slot = q->buffer + (q->tail - 1) * q->sz;
 	}
 	memcpy(slot, value, q->sz);
 }
