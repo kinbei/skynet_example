@@ -115,7 +115,7 @@ command(struct skynet_context *ctx, struct package *P, int session, uint32_t sou
 			assert(queue_empty(&P->request));
 			struct response resp;
 			queue_pop(&P->response, &resp);
-			skynet_send(ctx, 0, source, PTYPE_RESPONSE, session, resp.msg, resp.sz);
+			skynet_send(ctx, 0, source, PTYPE_RESPONSE | PTYPE_TAG_DONTCOPY, session, resp.msg, resp.sz);
 		} else {
 			struct request req;
 			req.source = source;
@@ -253,7 +253,7 @@ response(struct skynet_context *ctx, struct package *P) {
 		struct response resp;
 		queue_pop(&P->request, &req);
 		queue_pop(&P->response, &resp);
-		skynet_send(ctx, 0, req.source, PTYPE_RESPONSE, req.session, resp.msg, resp.sz);
+		skynet_send(ctx, 0, req.source, PTYPE_RESPONSE | PTYPE_TAG_DONTCOPY, req.session, resp.msg, resp.sz);
 	}
 }
 
@@ -366,6 +366,8 @@ package_create(void) {
 
 void
 package_release(struct package *P) {
+	queue_exit(&P->request);
+	queue_exit(&P->response);
 	skynet_free(P);
 }
 

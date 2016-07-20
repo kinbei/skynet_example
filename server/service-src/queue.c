@@ -3,18 +3,28 @@
 #include "string.h"
 #include "assert.h"
 
-void queue_init(struct queue *q, int sz) {
+static void
+queue_init(struct queue *q, int sz) {
 	q->head = 0;
 	q->tail = 0;
-	q->buffer = NULL;
 	q->sz = sz;
+	q->cap = 4;
+	q->buffer = skynet_malloc(q->cap * q->sz);
 }
 
-int queue_empty(struct queue *q) {
+static void
+queue_exit(struct queue *q) {
+	skynet_free(q->buffer);
+	q->buffer = NULL;
+}
+
+static int
+queue_empty(struct queue *q) {
 	return q->head == q->tail;
 }
 
-int queue_pop(struct queue *q, void *result) {
+static int
+queue_pop(struct queue *q, void *result) {
 	if (q->head == q->tail) {
 		return 1;
 	}
@@ -25,7 +35,8 @@ int queue_pop(struct queue *q, void *result) {
 	return 0;
 }
 
-void queue_push(struct queue *q, const void *value) {
+static void
+queue_push(struct queue *q, const void *value) {
 	void * slot = q->buffer + q->tail * q->sz;
 	++q->tail;
 	if (q->tail >= q->cap)
@@ -34,8 +45,6 @@ void queue_push(struct queue *q, const void *value) {
 		// full
 		assert(q->sz > 0);
 		int cap = q->cap * 2;
-		if (cap == 0)
-			cap = 4;
 		char * tmp = skynet_malloc(cap * q->sz);
 		int i;
 		int head = q->head;
@@ -48,15 +57,16 @@ void queue_push(struct queue *q, const void *value) {
 		}
 		skynet_free(q->buffer);
 		q->head = 0;
-		q->tail = q->cap ? q->cap : 1;
+		slot = tmp + (q->cap-1) * q->sz;
+		q->tail = q->cap;
 		q->cap = cap;
 		q->buffer = tmp;
-		slot = q->buffer + (q->tail - 1) * q->sz;
 	}
 	memcpy(slot, value, q->sz);
 }
 
-int queue_size(struct queue *q) {
+static int
+queue_size(struct queue *q) {
 	if (q->head > q->tail) {
 		return q->tail + q->cap - q->head;
 	}
