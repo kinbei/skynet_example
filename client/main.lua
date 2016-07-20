@@ -1,4 +1,4 @@
-package.cpath = package.cpath .. ";../lsocket/?.so"
+package.cpath = package.cpath .. ";./lsocket/?.so"
 package.path = package.path .. ";../server/lualib/?.lua"
 
 local zwprotoc = require "zwprotoc"
