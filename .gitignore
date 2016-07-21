@@ -1,4 +1,4 @@
-/server/cservice/*.so
-/server/luaclib/*.so
-/server/luaclib/zwproto.so
-/server/run/*
+server/cservice/*.so
+server/luaclib/*.so
+server/luaclib/zwproto.so
+server/run/*
