@@ -116,7 +116,8 @@ lresetwritebuffer(lua_State *L) {
 
 static void
 updatecompletesz(lua_State *L, int index, size_t complete_sz) {
-	//debug_assert( lua_type(L, lua_upvalueindex(UPVALUE_TABLE)) == LUA_TTABLE );
+	debug_assert( lua_type(L, lua_upvalueindex(UPVALUE_TABLE)) == LUA_TTABLE );
+	//debug("updatecompletesz|index(%d) complete_sz(%d)", index, complete_sz);
 
 	lua_pushvalue(L, index);
 	lua_pushinteger(L, complete_sz);
@@ -134,6 +135,10 @@ expandbuffer(lua_State *L, int osz, int nsz) {
 		return NULL;
 	}
 
+	size_t oldsz;
+	size_t oldcomplete_sz;
+	void *oldoutput = getwritebuffer(L, &oldsz, &oldcomplete_sz);
+	
 	//debug_assert( lua_type(L, lua_upvalueindex(UPVALUE_TABLE)) == LUA_TTABLE );
 
 	lua_pushvalue(L, lua_upvalueindex(FIELD_WRITE_BUFFER));
@@ -143,6 +148,8 @@ expandbuffer(lua_State *L, int osz, int nsz) {
 	lua_pushvalue(L, lua_upvalueindex(FIELD_WRITE_SZ));
 	lua_pushinteger(L, osz);
 	lua_settable(L, lua_upvalueindex(UPVALUE_TABLE));
+
+	memcpy(output, oldoutput, oldcomplete_sz);
 
 	return output;
 }
@@ -593,8 +600,10 @@ lgetreadbuffer(lua_State *L) {
 	lua_pop(L, 1);
 
 	luaL_argcheck(L, sz >= complete_sz, 1, "Invalid complete_sz param");
+
 	lua_pushlstring(L, buffer, sz);
-	return 1;
+	lua_pushinteger(L, complete_sz);
+	return 2;
 }
 
 /*

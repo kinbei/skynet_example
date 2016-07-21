@@ -13,6 +13,7 @@ struct queue {
 };
 
 void queue_init(struct queue *q, int sz);
+void queue_exit(struct queue *q);
 int queue_empty(struct queue *q);
 int queue_pop(struct queue *q, void *result);
 void queue_push(struct queue *q, const void *value);

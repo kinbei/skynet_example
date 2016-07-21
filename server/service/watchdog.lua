@@ -8,6 +8,7 @@ local debugtools = require "debugtools"
 
 local socket_agent = {} -- fd --> agent
 local CMD = {}
+local CLIENT = {}
 local global_player_id = 0
 
 CMD[NETDEFINE.HEARTBEAT] = function()
@@ -82,8 +83,27 @@ local function get_request(fd)
 	return zwproto.request_unpack( proxy.read(fd) )
 end
 
+function CLIENT.message(fd, servantname, resp)
+	if socket_agent[fd] ~= nil then
+		skynet.error( string.format("Can't found fd(%d)", fd) )
+		return 
+	end
+
+	local buff = zwproto.response_pack(resp)
+	proxy.write(fd, buff)
+end
+
 skynet.start( function()
 	skynet.error(string.format("Listen on 8888"))
+
+	skynet.dispatch("client", function(_, _, command, ...)
+		local f = CMD[command]
+		if f == nil then
+			debugtools.print("command = %s not found", command)
+		else
+			skynet.ret(skynet.pack(f(...)))
+		end
+	end)
 	
 	local listen_socket = assert(socket.listen("192.168.8.196", 8888))
 	socket.start(listen_socket, function (fd, addr)

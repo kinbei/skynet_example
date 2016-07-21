@@ -1,20 +1,32 @@
-root = "../skynet/"
+SKYNET_ROOT = "./skynet/"
+SERVER_ROOT = "./server/"
+
+SERVER_LUA_SERVICE = SERVER_ROOT .. "service/?.lua;" .. SERVER_ROOT .. "?.lua"
+SERVER_LUA_PATH = SERVER_ROOT .. "lualib/?.lua;" .. SERVER_ROOT .. "lualib/scene/?.lua;"
+SERVER_LUA_CPATH = SERVER_ROOT .. "luaclib/?.so;"
+SERVER_CPATH = SERVER_ROOT .. "cservice/?.so;"
+
+
 thread = 8
-logger = nil
-logpath = "."
+logpath = SERVER_ROOT .. "run"
 harbor = 1
 address = "127.0.0.1:2526"
 master = "127.0.0.1:2013"
 start = "main"	-- main script
 bootstrap = "snlua bootstrap"	-- The service for bootstrap
 standalone = "0.0.0.0:2013"
-luaservice = root.."service/?.lua;"..root.."lualib/?.lua;".."./service/?.lua;".."./?.lua;"
-lualoader = root.."lualib/loader.lua"
-lua_path = root.."lualib/?.lua;"..root.."lualib/?/init.lua;".."./lualib/?.lua;./lualib/scene/?.lua;"
-lua_cpath = root.."luaclib/?.so;".."./lualib/?.so;"
+luaservice = SKYNET_ROOT .. "service/?.lua;" .. SKYNET_ROOT .."lualib/?.lua;" .. SERVER_LUA_SERVICE
+lualoader = SKYNET_ROOT .. "lualib/loader.lua"
+lua_path = SKYNET_ROOT .. "lualib/?.lua;" .. SKYNET_ROOT .. "lualib/?/init.lua;" .. SERVER_LUA_PATH
+lua_cpath = SKYNET_ROOT .. "luaclib/?.so;" .. SERVER_LUA_CPATH
 
 -- preload = "./examples/preload.lua"	-- run preload.lua before every lua service run
--- snax = root.."examples/?.lua;"..root.."test/?.lua"
+-- snax = SKYNET_ROOT .. "examples/?.lua;" .. SKYNET_ROOT .. "test/?.lua"
 -- snax_interface_g = "snax_g"
-cpath = root.."cservice/?.so;".."./cservice/?.so;"
--- daemon = "./skynet.pid"
+
+cpath = SKYNET_ROOT .. "cservice/?.so;" .. SERVER_CPATH
+
+if $DAEMON then
+	logger = SERVER_ROOT .. "run/skynet.log"
+	daemon = SERVER_ROOT .. "run/skynet.pid"
+end
