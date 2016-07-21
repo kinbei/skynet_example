@@ -86,7 +86,7 @@ function CMD.player_online(agent, avatar_common)
 end
 
 function CMD.player_move(agent, steps)
-	skynet.error(string.format("cellapp player_move agent(0x%08X)", agent))
+	skynet.error(string.format("cellapp player_move agent(0x%08X) steps(%d)", agent, #steps))
 	local player = agent_player[agent]
 	if player == nil then
 		skynet.error(string.format("cellapp player_offline|can't found agent(0x%08X)", agent))
@@ -97,6 +97,8 @@ function CMD.player_move(agent, steps)
 		map:mov_avatar(player, player.avatar_common.map_x, player.avatar_common.map_y, v.x, v.y)
 		player.avatar_common.map_x, player.avatar_common.map_y = v.x, v.y
 	end
+
+	-- debugtools.print("playre.aoi_list = %s", #player.aoi_list)
 end
 
 function CMD.player_offline(agent)
@@ -135,14 +137,13 @@ skynet.start( function()
 	end)
 
 	-- aoi broadcast
-	--[[
 	add_timer(300, function()
 		for agent, player in pairs(agent_player) do
 			if #player.aoi_list ~= 0 then
+				debugtools.print("%s", #player.aoi_list)
 				skynet.send(agent, "lua", "cellapp", "aoi_event", player.aoi_list)
 				player.aoi_list = {}
 			end
 		end
 	end)
-	--]]
 end)

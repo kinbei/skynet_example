@@ -1,3 +1,3 @@
 # skynet_example
 
-基于skynet写的一个demo
+A game server based on skynet

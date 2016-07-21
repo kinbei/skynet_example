@@ -3,7 +3,7 @@
 #include "string.h"
 #include "assert.h"
 
-static void
+void
 queue_init(struct queue *q, int sz) {
 	q->head = 0;
 	q->tail = 0;
@@ -12,18 +12,18 @@ queue_init(struct queue *q, int sz) {
 	q->buffer = skynet_malloc(q->cap * q->sz);
 }
 
-static void
+void
 queue_exit(struct queue *q) {
 	skynet_free(q->buffer);
 	q->buffer = NULL;
 }
 
-static int
+int
 queue_empty(struct queue *q) {
 	return q->head == q->tail;
 }
 
-static int
+int
 queue_pop(struct queue *q, void *result) {
 	if (q->head == q->tail) {
 		return 1;
@@ -35,7 +35,7 @@ queue_pop(struct queue *q, void *result) {
 	return 0;
 }
 
-static void
+void
 queue_push(struct queue *q, const void *value) {
 	void * slot = q->buffer + q->tail * q->sz;
 	++q->tail;
@@ -65,7 +65,7 @@ queue_push(struct queue *q, const void *value) {
 	memcpy(slot, value, q->sz);
 }
 
-static int
+int
 queue_size(struct queue *q) {
 	if (q->head > q->tail) {
 		return q->tail + q->cap - q->head;

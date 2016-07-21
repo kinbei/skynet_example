@@ -18,11 +18,11 @@ CLIENT[NETDEFINE.GW_PLAYER_MOVE] = function(fd, req, header)
 		steps[#steps+1] = { x = v.x, y = v.z }
 	end
 	
-	local s = ""
-	for _, step in ipairs(req.steps) do
-		s = s .. string.format("{x=%d, y=%d, z=%d} ", step.x, step.y, step.z)
-	end
-	skynet.error(string.format("gw_player_move|player_id(%d) steps(%s)", avatar_common.avatar_id, s))
+	-- local s = ""
+	-- for _, step in ipairs(req.steps) do
+	--	s = s .. string.format("{x=%d, y=%d, z=%d} ", step.x, step.y, step.z)
+	-- end
+	-- skynet.error(string.format("gw_player_move|player_id(%d) steps(%s)", avatar_common.avatar_id, s))
 
 	skynet.call(cellapp, "lua", "player_move", skynet.self(), steps)
 	avatar_common.map_x = steps[#steps].x

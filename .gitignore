@@ -1,2 +1,2 @@
-/server/lualib/*.so
 /server/cservice/*.so
+/server/luaclib/*.so
