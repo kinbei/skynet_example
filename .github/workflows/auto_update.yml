@@ -1,0 +1,31 @@
+# This is a basic workflow to help you get started with Actions
+
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  schedule:
+    - cron:  '0 0 * * *'
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - run: git config --global user.email "kinbei@qq.com"
+      - run: git config --global user.name "kinbei"
+
+      - name: Update all submodule to latest
+        run: |
+          git submodule update --init --recursive
+          git submodule foreach git pull origin master
+          make
+          git commit -m "Auto update all submodule to the latest version" -a || true
+          git push
+
