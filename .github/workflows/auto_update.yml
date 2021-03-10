@@ -11,6 +11,7 @@ on:
     - cron:  '0 21 * * *'
 
   workflow_dispatch:
+  repository_dispatch:
 
 jobs:
   build:
