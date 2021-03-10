@@ -22,6 +22,13 @@ jobs:
       - run: git config --global user.email "kinbei@qq.com"
       - run: git config --global user.name "kinbei"
 
+      - uses: crazy-max/ghaction-import-gpg@v3
+        with:
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PRIVATE_KEY_PASSPHRASE }}
+          git-user-signingkey: true
+          git-commit-gpgsign: true
+
       - name: Update all submodule to latest
         run: |
           git submodule update --init --recursive
