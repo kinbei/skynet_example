@@ -32,7 +32,7 @@ jobs:
       - name: Update all submodule to latest
         run: |
           git submodule update --init --recursive
-          git submodule foreach git pull origin master
+          git submodule foreach git pull
           make
           git commit -m "Auto update all submodule to the latest version" -a || true
           git push
