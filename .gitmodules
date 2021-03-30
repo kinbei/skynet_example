@@ -1,9 +1,9 @@
-[submodule "skynet"]
-	path = skynet
-	url = https://github.com/cloudwu/skynet.git
 [submodule "server/lualib/scene"]
 	path = server/lualib/scene
 	url = https://github.com/kinbei/lua-aoi.git
 [submodule "client/lsocket"]
 	path = client/lsocket
 	url = https://github.com/cloudwu/lsocket.git
+[submodule "skynet"]
+	path = skynet
+	url = https://github.com/cloudwu/skynet
